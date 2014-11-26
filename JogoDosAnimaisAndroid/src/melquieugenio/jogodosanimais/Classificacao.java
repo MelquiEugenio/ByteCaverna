@@ -1,4 +1,4 @@
-package eugenio.jogodosanimais;
+/*package melquieugenio.jogodosanimais;
 
 public class Classificacao extends No {
 	
@@ -22,3 +22,4 @@ public class Classificacao extends No {
 		return this;
 	}
 }
+*/

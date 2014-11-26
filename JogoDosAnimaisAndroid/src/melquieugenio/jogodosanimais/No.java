@@ -1,4 +1,4 @@
-package eugenio.jogodosanimais;
+package melquieugenio.jogodosanimais;
 
 public abstract class No {
 	
