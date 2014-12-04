@@ -3,10 +3,13 @@ package melquieugenio.jogodosanimais;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.widget.EditText;
 
-public class Jogador extends Activity {
+public class Jogador {
 	
 	Activity activity;
+	String resposta;
+	int ret;
 	
 	public Jogador(Activity activity){
 		this.activity = activity;
@@ -14,7 +17,7 @@ public class Jogador extends Activity {
 
 	public void considere(String mensagem){
 		
-		alert(mensagem, options("Ok"), new DialogInterface.OnClickListener() {
+		alert(mensagem, options("OK"), new DialogInterface.OnClickListener() {
 			public void onClick(DialogInterface dialog, int which) {
 				acorda();
 		}});
@@ -22,20 +25,43 @@ public class Jogador extends Activity {
 		dorme();
 	}
 	
-	/*public boolean responda(String pergunta) {
-		int result = showConfirmDialog(null, pergunta, "Responda", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-		return result == YES_OPTION;
+	public boolean responda(String pergunta) {
+	 
+		alert(pergunta, options("Sim", "Não"), new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int which) {
+				ret = which;
+				acorda();
+		}});
+		
+		dorme();
+		return ret == 1;
 	}
 	
-	public String insira(String pergunta){
-		String result = showInputDialog(pergunta);
-		if (result == null) System.exit(0);
-		return result;
-	}*/
-	
-	protected void alert(final String title, final CharSequence[] options, final DialogInterface.OnClickListener OnClickListener){
+	public String insira(final String pergunta){
 		
-		runOnUiThread(new Runnable(){ public void run(){
+		final EditText input = new EditText(activity);
+		
+		activity.runOnUiThread(new Runnable(){ public void run(){
+			
+			new AlertDialog.Builder(activity)
+			.setTitle(pergunta)
+			.setView(input)
+			.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+        		public void onClick(DialogInterface dialog, int whichButton) {
+            		resposta = input.getText().toString();
+            		acorda();
+        	}})
+			.show();
+		}});
+		
+		dorme();
+		return resposta;
+	}
+	
+	public void alert(final String title, final CharSequence[] options, final DialogInterface.OnClickListener OnClickListener){
+		
+		activity.runOnUiThread(new Runnable(){ public void run(){
+			
 			new AlertDialog.Builder(activity)
 			.setTitle(title)
 			.setItems(options, OnClickListener)
