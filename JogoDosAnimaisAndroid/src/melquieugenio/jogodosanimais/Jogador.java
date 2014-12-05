@@ -34,7 +34,7 @@ public class Jogador {
 		}});
 		
 		dorme();
-		return ret == 1;
+		return ret == 0;
 	}
 	
 	public String insira(final String pergunta){
