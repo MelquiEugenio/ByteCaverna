@@ -1,17 +1,17 @@
 (ns udp-spike.core)
 
-(defn create-xmitter [max-block-size content-bytes]
-  {:max-block-size      max-block-size
-   :content-bytes       content-bytes
-   :next-packet-to-send 0})
+(defn create-xmitter [max-packet-size content-bytes]
+  {:max-packet-size   max-packet-size
+   :content-bytes     content-bytes
+   :next-block-to-send 0})
 
-(defn create-receiver [max-block-size]
-  {:max-block-size max-block-size
+(defn create-receiver [max-packet-size]
+  {:max-packet-size max-packet-size
    :last-block-received 0})
 
 (defn packet-to-receiver [xmitter]
   (let [packet (xmitter :content-bytes)
-        limit (xmitter :max-block-size)]
+        limit (xmitter :max-packet-size)]
     (if (< (alength packet) limit)
       (byte-array (conj (vec packet) 127))
       ())))
@@ -23,18 +23,18 @@
   nil)
 
 (defn xmitter-handle [xmitter packet]
-  (update-in xmitter [:next-packet-to-send] inc))
+  (update-in xmitter [:next-block-to-send] inc))
 
 (defn contents-received [receiver]
   (receiver :content-bytes))
 
-(defn testa-transmissao-bytes [max-block-size content-bytes]
+(defn testa-transmissao-bytes [max-packet-size content-bytes]
   (let [result
-        (loop [receiver (create-receiver max-block-size)
-               xmitter (create-xmitter max-block-size content-bytes)]
+        (loop [receiver (create-receiver max-packet-size)
+               xmitter (create-xmitter max-packet-size content-bytes)]
           (if-let [packet (packet-to-receiver xmitter)]
             (do
-              (assert (<= (alength packet) max-block-size))
+              (assert (<= (alength packet) max-packet-size))
               (recur
                 (receiver-handle receiver packet)
                 (xmitter-handle xmitter (packet-to-xmitter receiver))))
@@ -53,4 +53,5 @@
   (testa-transmissao "12345678")
   (testa-transmissao "123456789")
   (testa-transmissao "1234567890")
-  (testa-transmissao "1234567891"))
+  (testa-transmissao "12345678901")
+  (testa-transmissao "1234567890rctvbhnjmioklpokhuitfdrdcvbnumioplokjihuygtf"))
