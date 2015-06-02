@@ -17,7 +17,15 @@
                                (get content-state i))) identifier)))))
 
 (defn xmitter-handle [xmitter-state packet-from-receiver]
-  (update-in xmitter-state [:next-block-to-send] inc))
+  ;se packet-from-receiver confirmar a entrega
+  (let [content-state (xmitter-state :content-bytes)
+        limit (xmitter-state :max-packet-size)]
+    (do
+      (assoc xmitter-state :next-block-to-send inc)
+      (assoc xmitter-state :content-bytes (byte-array
+                                            (for [i (range (alength content-state))
+                                                  :when (>= i limit)]
+                                              (get content-state i)))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; RECEIVER:
