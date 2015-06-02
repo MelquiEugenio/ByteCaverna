@@ -8,11 +8,13 @@
    :next-block-to-send 0})
 
 (defn packet-to-receiver [xmitter-state]
-  (let [packet (xmitter-state :content-bytes)
-        limit (xmitter-state :max-packet-size)]
-    (if (< (alength packet) limit)
-      (byte-array (conj (vec packet) 127))
-      ())))
+  (let [content-state (xmitter-state :content-bytes)
+        limit (xmitter-state :max-packet-size)
+        identifier (xmitter-state :next-block-to-send)]
+    (if (< (alength content-state) limit)
+      (byte-array (conj (vec content-state) 127))
+      (byte-array (conj (vec (for [i (range (dec limit))]
+                               (get content-state i))) identifier)))))
 
 (defn xmitter-handle [xmitter-state packet-from-receiver]
   (update-in xmitter-state [:next-block-to-send] inc))
@@ -43,9 +45,9 @@
                xmitter-state (init-xmitter-state max-packet-size content-bytes)]
           (if-let [packet-to-receiver (packet-to-receiver xmitter-state)]
             (do
-              (assert (<= (alength packet) max-packet-size))
+              (assert (<= (alength packet-to-receiver) max-packet-size))
               (recur
-                (receiver-handle receiver-state packet)
+                (receiver-handle receiver-state packet-to-receiver)
                 (xmitter-handle xmitter-state (packet-to-xmitter receiver-state))))
             (contents-received receiver-state)))]
     (assert (= result content-bytes))))
