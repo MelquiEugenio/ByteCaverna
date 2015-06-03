@@ -3,29 +3,44 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; TRANSMITTER:
 
 (defn init-xmitter-state [max-packet-size content-bytes]
-  {:max-packet-size   max-packet-size
-   :content-bytes     content-bytes
-   :next-block-to-send 0})
+  {:max-packet-size max-packet-size
+   :content-bytes   content-bytes
+   :identifier      0})
+
+(defn add-identifier
+  ([content-state] (byte-array (conj (vec content-state) 127)))
+  ([content-state limit identifier]
+   (byte-array (conj (vec (for [i (range (dec limit))] (get content-state i)))
+                     identifier))))
 
 (defn packet-to-receiver [xmitter-state]
   (let [content-state (xmitter-state :content-bytes)
         limit (xmitter-state :max-packet-size)
-        identifier (xmitter-state :next-block-to-send)]
-    (if (< (alength content-state) limit)
-      (byte-array (conj (vec content-state) 127))
-      (byte-array (conj (vec (for [i (range (dec limit))]
-                               (get content-state i))) identifier)))))
+        identifier (xmitter-state :identifier)]
+    (if-not (nil? content-state)
+      (if (< (alength content-state) limit)
+        (add-identifier content-state)
+        (add-identifier content-state limit identifier))
+      nil)))
+
+(defn content-update [content-state limit]
+  (byte-array
+    (for [i (range (alength content-state))
+          :when (>= i limit)]
+      (get content-state i))))
 
 (defn xmitter-handle [xmitter-state packet-from-receiver]
-  ;se packet-from-receiver confirmar a entrega
   (let [content-state (xmitter-state :content-bytes)
-        limit (xmitter-state :max-packet-size)]
-    (do
-      (assoc xmitter-state :next-block-to-send inc)
-      (assoc xmitter-state :content-bytes (byte-array
-                                            (for [i (range (alength content-state))
-                                                  :when (>= i limit)]
-                                              (get content-state i)))))))
+        limit (xmitter-state :max-packet-size)
+        identifier (xmitter-state :identifier)]
+    (if-not (nil? packet-from-receiver)
+      (if (and (= packet-from-receiver identifier)
+               (not= packet-from-receiver 127))
+        {:max-packet-size limit
+         :content-bytes   (content-update content-state limit)
+         :identifier      (inc identifier)}
+        nil)
+      xmitter-state)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; RECEIVER:
@@ -36,7 +51,7 @@
 
 (defn receiver-handle [receiver-state packet-from-xmitter]
   ;(assoc receiver-state ...)
-  {:content-bytes packet})
+  {:content-bytes packet-from-xmitter})
 
 (defn packet-to-xmitter [receiver-state]
   nil)
