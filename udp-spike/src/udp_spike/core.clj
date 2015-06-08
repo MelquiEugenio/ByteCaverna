@@ -5,40 +5,43 @@
 (defn init-xmitter-state [max-packet-size content-bytes]
   {:max-packet-size max-packet-size
    :content-bytes   content-bytes
-   :identifier      0})
+   :block-identifier      0})
 
-(defn add-identifier
-  ([content-state] (byte-array (conj (vec content-state) 127)))
-  ([content-state limit identifier]
-   (byte-array (conj (vec (for [i (range (dec limit))] (get content-state i)))
-                     identifier))))
+#_(defn add-identifier
+  ([content] (byte-array (conj (vec content) 127)))
+  ([content max-size identifier]
+   (byte-array (conj (subvec (vec content) 0 (dec max-size)) identifier))))
 
 (defn packet-to-receiver [xmitter-state]
-  (let [content-state (xmitter-state :content-bytes)
-        limit (xmitter-state :max-packet-size)
-        identifier (xmitter-state :identifier)]
-    (if-not (nil? content-state)
-      (if (< (alength content-state) limit)
-        (add-identifier content-state)
-        (add-identifier content-state limit identifier))
-      nil)))
+  (if-let [content (xmitter-state :content-bytes)
+        ;block-identifier (xmitter-state :block-identifier)
+        ]
+      (if (<= (alength content) (xmitter-state :max-packet-size))
+        content
+        (byte-array (subvec (vec content) 0 (xmitter-state :max-packet-size)))
+        ;(add-identifier content)
+        ;(add-identifier content max-size block-identifier)
+        )))
 
-(defn content-update [content-state limit]
-  (byte-array
-    (for [i (range (alength content-state))
-          :when (>= i limit)]
-      (get content-state i))))
+(defn content-update [content max-size]
+  (byte-array (subvec (vec content) max-size)))
 
 (defn xmitter-handle [xmitter-state packet-from-receiver]
-  (let [content-state (xmitter-state :content-bytes)
-        limit (xmitter-state :max-packet-size)
-        identifier (xmitter-state :identifier)]
-    (if-not (nil? packet-from-receiver)
-      (if (and (= packet-from-receiver identifier)
-               (not= packet-from-receiver 127))
-        {:max-packet-size limit
-         :content-bytes   (content-update content-state limit)
-         :identifier      (inc identifier)}
+  (let [content (xmitter-state :content-bytes)
+        max-size (xmitter-state :max-packet-size)
+        identifier (xmitter-state :block-identifier)]
+    (if (<= (alength content) max-size)
+      nil
+      {:max-packet-size max-size
+       :content-bytes    (content-update content max-size)
+       :block-identifier (inc identifier)})
+
+    #_(if-not (nil? packet-from-receiver)
+      (if (and (= (first packet-from-receiver) identifier)
+               (not= packet-from-receiver 127))             ;retirar identifier
+        {:max-packet-size  max-size
+         :content-bytes    (content-update content max-size)
+         :block-identifier (inc identifier)}
         nil)
       xmitter-state)))
 
@@ -47,11 +50,12 @@
 
 (defn init-receiver-state [max-packet-size]
   {:max-packet-size     max-packet-size
-   :last-block-received 0})
+   :last-block-received 0
+   :content-bytes (byte-array 0)})
 
 (defn receiver-handle [receiver-state packet-from-xmitter]
-  ;(assoc receiver-state ...)
-  {:content-bytes packet-from-xmitter})
+  (let [ret (update-in receiver-state [:last-block-received] inc)]
+    (update-in ret [:content-bytes] #(byte-array (concat % packet-from-xmitter)))))
 
 (defn packet-to-xmitter [receiver-state]
   nil)
