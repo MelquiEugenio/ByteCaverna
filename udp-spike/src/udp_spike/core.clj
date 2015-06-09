@@ -3,9 +3,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; TRANSMITTER:
 
 (defn init-xmitter-state [max-packet-size content-bytes]
-  {:max-packet-size max-packet-size
-   :content-bytes   content-bytes
-   :block-identifier      0})
+  {:max-packet-size    max-packet-size
+   :content-bytes      content-bytes
+   :block-identifier   0})
 
 #_(defn add-identifier
   ([content] (byte-array (conj (vec content) 127)))
@@ -14,31 +14,26 @@
 
 (defn packet-to-receiver [xmitter-state]
   (if-let [content (xmitter-state :content-bytes)
-        ;block-identifier (xmitter-state :block-identifier)
-        ]
-      (if (<= (alength content) (xmitter-state :max-packet-size))
-        content
-        (byte-array (subvec (vec content) 0 (xmitter-state :max-packet-size)))
-        ;(add-identifier content)
-        ;(add-identifier content max-size block-identifier)
-        )))
-
-(defn content-update [content max-size]
-  (byte-array (subvec (vec content) max-size)))
+           ;block-identifier (xmitter-state :block-identifier)
+           ]
+    (if (<= (alength content) (xmitter-state :max-packet-size))
+      content
+      (byte-array (subvec (vec content) 0 (xmitter-state :max-packet-size)))
+      ;(add-identifier content)
+      ;(add-identifier content max-size block-identifier)
+      )))
 
 (defn xmitter-handle [xmitter-state packet-from-receiver]
-  (let [content (xmitter-state :content-bytes)
-        max-size (xmitter-state :max-packet-size)
-        identifier (xmitter-state :block-identifier)]
-    (if (<= (alength content) max-size)
-      nil
-      {:max-packet-size max-size
-       :content-bytes    (content-update content max-size)
-       :block-identifier (inc identifier)})
+  (let [ret (update-in xmitter-state [:block-identifier] inc)
+        content (:content-bytes xmitter-state)
+        max-size (:max-packet-size xmitter-state)]
+    (if (>= (alength content) max-size)
+      (update-in ret [:content-bytes] #(byte-array (subvec (vec %) max-size)))
+      (dissoc xmitter-state :content-bytes))
 
     #_(if-not (nil? packet-from-receiver)
       (if (and (= (first packet-from-receiver) identifier)
-               (not= packet-from-receiver 127))             ;retirar identifier
+               (not= packet-from-receiver 127))
         {:max-packet-size  max-size
          :content-bytes    (content-update content max-size)
          :block-identifier (inc identifier)}
@@ -51,7 +46,7 @@
 (defn init-receiver-state [max-packet-size]
   {:max-packet-size     max-packet-size
    :last-block-received 0
-   :content-bytes (byte-array 0)})
+   :content-bytes       (byte-array 0)})
 
 (defn receiver-handle [receiver-state packet-from-xmitter]
   (let [ret (update-in receiver-state [:last-block-received] inc)]
@@ -77,7 +72,8 @@
                 (receiver-handle receiver-state packet-to-receiver)
                 (xmitter-handle xmitter-state (packet-to-xmitter receiver-state))))
             (contents-received receiver-state)))]
-    (assert (= result content-bytes))))
+    (println (vec content-bytes) (vec result))
+    (assert (= (vec result) (vec content-bytes)))))
 
 (defn testa-transmissao [string]
   (println string)
@@ -92,4 +88,5 @@
   (testa-transmissao "123456789")
   (testa-transmissao "1234567890")
   (testa-transmissao "12345678901")
-  (testa-transmissao "1234567890rctvbhnjmioklpokhuitfdrdcvbnumioplokjihuygtf"))
+  (testa-transmissao "1234567890rctvbhnjmioklpokhuitfdrdcvbnumioplokjihuygtf")
+  )
