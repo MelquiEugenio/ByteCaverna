@@ -15,7 +15,7 @@
 
 (defn packet-to-receiver [xmitter-state]
   (if-let [content (:content-bytes xmitter-state)]
-    (let [max-size (:max-packet-size xmitter-state)
+    (let [max-size        (:max-packet-size xmitter-state)
           last-block-sent (:last-block-sent xmitter-state)]
       (if (< (alength content) max-size)
         (add-identifier content)
@@ -24,7 +24,7 @@
 
 (defn xmitter-handle [xmitter-state packet-from-receiver]
   (let [last-block-sent (:last-block-sent xmitter-state)
-        max-size        (:max-packet-size xmitter-state)]
+        max-size (:max-packet-size xmitter-state)]
     (cond
       (= (first packet-from-receiver) last-block-sent)
       (let [ret (update-in xmitter-state [:last-block-sent] inc)]
@@ -66,6 +66,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; TESTE
 
+(defn lost-packet-simu [packet-to-receiver]
+  (if (even? (rand-int 2))
+    packet-to-receiver))
+
 (defn testa-transmissao-bytes [max-packet-size content-bytes]
   (let [result
         (loop [receiver-state (init-receiver-state max-packet-size)
@@ -74,7 +78,7 @@
             (do
               (assert (<= (alength packet-to-receiver) max-packet-size))
               (recur
-                (receiver-handle receiver-state packet-to-receiver)
+                (receiver-handle receiver-state (lost-packet-simu packet-to-receiver))
                 (xmitter-handle xmitter-state (packet-to-xmitter receiver-state packet-to-receiver))))
             (contents-received receiver-state)))]
     (Arrays/equals result content-bytes)))
