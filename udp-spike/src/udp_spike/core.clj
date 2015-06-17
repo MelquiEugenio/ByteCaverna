@@ -1,5 +1,6 @@
 (ns udp-spike.core
-  (:import (java.util Arrays)))
+  (:import (java.util Arrays)
+           (java.io File FileInputStream FileOutputStream)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; TRANSMITTER:
 
@@ -47,14 +48,22 @@
     (println "pacote pro xmitter:" (vec (byte-array (vector (:expected-packet receiver-state)))))
     (byte-array (vector (:expected-packet receiver-state)))))
 
+(defn OutPut-file [bytes]
+  (let [file (File. "/home/melqui/Develop/Projects/udp-spike-testes/teste(c?pia).png")
+        os (FileOutputStream. file)]
+    (.write os bytes)
+    (.close os)))
+
 (defn receiver-handle [packet-from-xmitter receiver-state]
   (println "pacote recebido: " (vec packet-from-xmitter))
   (cond
     (= (last packet-from-xmitter) 127)
       (let [ret   (assoc receiver-state :expected-packet 127)
             ret   (assoc ret :is-updated true)
-            block (drop-last packet-from-xmitter)]
-        (update-in ret [:content-bytes] #(byte-array (concat % block))))
+            block (drop-last packet-from-xmitter)
+            ret   (update-in ret [:content-bytes] #(byte-array (concat % block)))]
+        (OutPut-file (:content-bytes ret))
+        ret)
     (= (last packet-from-xmitter) (:expected-packet receiver-state))
       (let [ret   (update-in receiver-state [:expected-packet] inc)
             ret   (assoc ret :is-updated true)
@@ -64,7 +73,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; TESTE
 
-; O proximo passo pode ser ler do arquivo mesmo. Depois pode ser transmitir via UDP mesmo.
+; Depois pode ser transmitir via UDP mesmo.
 
 (defn lost-packet-simu [packet-to-receiver]
   (if (= (mod (rand-int 2) 2) 0)         ;50% chance to lost the pack
@@ -92,18 +101,14 @@
     (println "-------------->>>enviado/recebido:" (vec content-bytes) (vec result))
     (Arrays/equals result content-bytes)))
 
-(defn testa-transmissao [string]
-  (println "string:" string)
-  (testa-transmissao-bytes 10 (.getBytes string)))
+(defn testa-transmissao [path]
+  (let [file (File. path)
+        bytes (byte-array (.length file))
+        is (FileInputStream. file)]
+    (.read is bytes)
+    (.close is)
+    (testa-transmissao-bytes 1024 bytes)))
 
 (defn testa-protocolo []
-  (testa-transmissao "")
-  (testa-transmissao "A")
-  (testa-transmissao "ABC")
-  (testa-transmissao "1234567")
-  (testa-transmissao "12345678")
-  (testa-transmissao "123456789")
-  (testa-transmissao "1234567890")
-  (testa-transmissao "12345678901")
-  (testa-transmissao "1234567890rctvbhnjmioklpokhuitfdrdcvbnumioplokjihuygtf")
+  (testa-transmissao "/home/melqui/Develop/Projects/udp-spike-testes/teste.png")
   )
