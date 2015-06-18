@@ -1,6 +1,7 @@
 (ns udp-spike.core
   (:import (java.util Arrays)
-           (java.io File FileInputStream FileOutputStream)))
+           (java.io File FileInputStream FileOutputStream)
+           (java.net DatagramPacket DatagramSocket InetAddress)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; TRANSMITTER:
 
@@ -8,6 +9,14 @@
   {:max-packet-size  max-packet-size
    :content-bytes    content-bytes
    :block-identifier -128})
+
+(defn in-put-file [path]
+  (let [file (File. path)
+        bytes (byte-array (.length file))
+        is (FileInputStream. file)]
+    (.read is bytes)
+    (.close is)
+    bytes))
 
 (defn add-identifier
   ([content]
@@ -38,15 +47,15 @@
    :expected-packet -128
    :is-updated      false})
 
-(defn packet-to-xmitter [receiver-state]
-  (when (:is-updated receiver-state)
-    (byte-array (vector (:expected-packet receiver-state)))))
-
 (defn out-put-file [bytes]
   (let [file (File. "/home/melqui/Develop/Projects/udp-spike-testes/teste(c?pia).png")
         os (FileOutputStream. file)]
     (.write os bytes)
     (.close os)))
+
+(defn packet-to-xmitter [receiver-state]
+  (when (:is-updated receiver-state)
+    (byte-array (vector (:expected-packet receiver-state)))))
 
 (defn receiver-handle [packet-from-xmitter receiver-state]
   (cond
@@ -93,13 +102,8 @@
     (Arrays/equals result content-bytes)))
 
 (defn testa-transmissao [path]
-  (let [file (File. path)
-        bytes (byte-array (.length file))
-        is (FileInputStream. file)]
-    (.read is bytes)
-    (.close is)
-    (testa-transmissao-bytes 1024 bytes)))
+  (testa-transmissao-bytes 1024 (in-put-file path)))
 
 (defn testa-protocolo []
-  (testa-transmissao "/home/melqui/Develop/Projects/udp-spike-testes/teste.png")
+  (testa-transmissao "/home/melqui/Develop/Projects/udp-spike-testes/teste.png") ;Strings
   )
