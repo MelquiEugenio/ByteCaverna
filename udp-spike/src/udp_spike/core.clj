@@ -22,7 +22,7 @@
         (let [block (subvec (vec content) 0 (dec max-size))]
           (append-id block id))))))
 
-(defn xmitter-handle [packet state]
+(defn sender-handle [packet state]
   (let [expecting (first packet)
         to-send  (:block-to-send state)]
     (cond
@@ -41,7 +41,7 @@
    :content-bytes     (byte-array 0)
    :block-expected    -128})
 
-(defn packet-to-xmitter [state]
+(defn packet-to-sender [state]
   (byte-array [(:block-expected state)]))
 
 (defn write-file [bytes]
@@ -95,10 +95,10 @@
                     receiver-state     (if packet-to-receiver
                                          (receiver-handle packet-to-receiver receiver-state)
                                          receiver-state)
-                    packet-to-xmitter  (send-packet conn2 (packet-to-xmitter receiver-state))
-                    sender-state      (if packet-to-xmitter
-                                         (xmitter-handle packet-to-xmitter sender-state)
-                                         sender-state)]
+                    packet-to-sender (send-packet conn2 (packet-to-sender receiver-state))
+                    sender-state      (if packet-to-sender
+                                        (sender-handle packet-to-sender sender-state)
+                                        sender-state)]
                 (recur sender-state receiver-state)))
             (:content-bytes receiver-state)))]
     (Arrays/equals ^bytes result ^bytes content-bytes)))
