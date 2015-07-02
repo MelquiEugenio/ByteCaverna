@@ -6,9 +6,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; SENDER:
 
 (defn init-sender-state [max-packet-size content-bytes]
-  {:max-packet-size  max-packet-size
-   :content-bytes    content-bytes
-   :block-to-send    -128})
+  {:max-packet-size max-packet-size
+   :content-bytes   (vec content-bytes)
+   :block-to-send   -128})
 
 (defn append-id [block id]
   (byte-array (conj block id)))
@@ -17,29 +17,29 @@
   (if-let [content  (:content-bytes state)]
     (let  [max-size (:max-packet-size state)
            id       (:block-to-send state)]
-      (if (< (alength content) max-size)
-        (append-id (vec content) 127)
-        (let [block (subvec (vec content) 0 (dec max-size))]
+      (if (< (.length content) max-size)
+        (append-id content 127)
+        (let [block (subvec content 0 (dec max-size))]
           (append-id block id))))))
 
 (defn sender-handle [packet state]
-  (let [expecting (first packet)
-        to-send  (:block-to-send state)]
+  (let [to-send   (:block-to-send state)
+        expecting (first packet)]
     (cond
-      (= expecting 127)                       ;means last pack was received
+      (= expecting 127)                                     ;means the last pack was received
         (dissoc state :content-bytes)
-      (= expecting (inc to-send))
-        (let [ret       (update-in state [:block-to-send] inc)
-              max-size  (:max-packet-size state)]
-          (update-in ret [:content-bytes] #(byte-array (subvec (vec %) (dec max-size)))))
+      (= expecting (inc to-send))                           ;expecting next
+        (let [ret      (update-in state [:block-to-send] inc)
+              max-size (:max-packet-size state)]
+          (update-in ret [:content-bytes] #(subvec % (dec max-size))))
       :else state)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; RECEIVER:
 
 (defn init-receiver-state [max-packet-size]
-  {:max-packet-size   max-packet-size
-   :content-bytes     (byte-array 0)
-   :block-expected    -128})
+  {:max-packet-size max-packet-size
+   :content-bytes   nil
+   :block-expected  -128})
 
 (defn packet-to-sender [state]
   (byte-array [(:block-expected state)]))
@@ -54,15 +54,15 @@
         block     (drop-last packet)
         expected  (:block-expected state)]
     (cond
-      (= expected 127)                       ;means the last pack already came
+      (= expected 127)                                      ;means the last pack already came
         state
-      (= id 127)                             ;last pack arrivin'
+      (= id 127)                                            ;last pack arriving
         (let [ret (update-in state [:content-bytes] #(byte-array (concat % block)))]
           (write-file (:content-bytes ret))
           (assoc ret :block-expected 127))
-      (= expected id)                        ;expected pack arrivin'
+      (= expected id)                                       ;expected
         (let [ret (update-in state [:block-expected] inc)]
-          (update-in ret [:content-bytes] #(byte-array (concat % block))))
+          (update-in ret [:content-bytes] #(concat % block)))
       :else state)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; TEST
@@ -76,11 +76,11 @@
   (atom []))
 
 (defn send-packet [conn packet]
-  (if (= (rand-int 2) 0)                              ;50%
+  (if (= (rand-int 2) 0)                                    ;50%
     packet
-    (when (= (rand-int 2) 0)                          ;25%
-      (swap! conn conj packet)                        ;add pack to simu
-      (get @conn (rand-int (dec (.length @conn))))))) ;return a lost pack, not the last added
+    (when (= (rand-int 2) 0)                                ;25%
+      (swap! conn conj packet)                              ;add pack to simu
+      (get @conn (rand-int (dec (.length @conn)))))))       ;return a lost pack, not the last added
 
 (defn testa-transmissao-bytes [max-packet-size content-bytes]
   (let [conn1 (connection-simulator)
@@ -94,11 +94,11 @@
               (let [packet-to-receiver (send-packet conn1 packet-to-receiver)
                     receiver-state     (if packet-to-receiver
                                          (receiver-handle packet-to-receiver receiver-state)
-                                         receiver-state)
-                    packet-to-sender (send-packet conn2 (packet-to-sender receiver-state))
-                    sender-state      (if packet-to-sender
-                                        (sender-handle packet-to-sender sender-state)
-                                        sender-state)]
+                                          receiver-state)
+                    packet-to-sender   (send-packet conn2 (packet-to-sender receiver-state))
+                    sender-state       (if packet-to-sender
+                                         (sender-handle packet-to-sender sender-state)
+                                         sender-state)]
                 (recur sender-state receiver-state)))
             (:content-bytes receiver-state)))]
     (Arrays/equals ^bytes result ^bytes content-bytes)))
@@ -115,7 +115,4 @@
     (time (testa-transmissao-bytes 1024 bytes))))
 
 (defn testa-protocolo []
-  (testa-transmissao "/home/melqui/Develop/GitHub/ByteCaverna/udp-spike/test/test.png")
-  )
-
-
+  (testa-transmissao "/home/melqui/Develop/GitHub/ByteCaverna/udp-spike/test/test.png"))
